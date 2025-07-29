@@ -30,6 +30,21 @@ const SIDEBAR_WIDTH_MOBILE = "18rem"
 const SIDEBAR_WIDTH_ICON = "3rem"
 const SIDEBAR_KEYBOARD_SHORTCUT = "b"
 
+// Helper function to read the sidebar state from cookie
+function getSidebarStateFromCookie(): boolean {
+  if (typeof document === "undefined") return true
+
+  const cookies = document.cookie.split(';')
+  const sidebarCookie = cookies.find(cookie =>
+    cookie.trim().startsWith(`${SIDEBAR_COOKIE_NAME}=`)
+  )
+
+  if (!sidebarCookie) return true // Default to open if no cookie
+
+  const value = sidebarCookie.split('=')[1].trim()
+  return value === 'true'
+}
+
 type SidebarContext = {
   state: "expanded" | "collapsed"
   open: boolean
@@ -68,20 +83,31 @@ function SidebarProvider({
   const [openMobile, setOpenMobile] = React.useState(false)
 
   // This is the internal state of the sidebar.
-  // We use openProp and setOpenProp for control from outside the component.
-  const [_open, _setOpen] = React.useState(defaultOpen)
+  // We prioritize the actual cookie value over the server defaultOpen prop
+  // to prevent state reset during navigation
+  const initialOpen = React.useMemo(() => {
+    // On client-side, read directly from cookie for most accurate state
+    if (typeof window !== "undefined") {
+      return getSidebarStateFromCookie()
+    }
+    // Fallback to server prop during SSR
+    return defaultOpen
+  }, [defaultOpen])
+
+  const [_open, _setOpen] = React.useState(initialOpen)
   const open = openProp ?? _open
   const setOpen = React.useCallback(
     (value: boolean | ((value: boolean) => boolean)) => {
       const openState = typeof value === "function" ? value(open) : value
+
+      // Set the cookie immediately before updating state
+      document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+
       if (setOpenProp) {
         setOpenProp(openState)
       } else {
         _setOpen(openState)
       }
-
-      // This sets the cookie to keep the sidebar state.
-      document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
     },
     [setOpenProp, open]
   )
@@ -401,7 +427,7 @@ function SidebarGroupLabel({
       data-sidebar="group-label"
       className={cn(
         "text-sidebar-foreground/70 ring-sidebar-ring flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium outline-hidden transition-[margin,opacity] duration-200 ease-linear focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0",
-        "group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0",
+        "group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0 group-data-[collapsible=icon]:select-none group-data-[collapsible=icon]:pointer-events-none",
         className
       )}
       {...props}
