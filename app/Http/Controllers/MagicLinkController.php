@@ -62,11 +62,6 @@ class MagicLinkController extends Controller
             abort(401, 'Invalid or expired magic link.');
         }
 
-        // Verify the hash matches the user's email
-        if (!hash_equals(sha1($user->email), $request->get('hash'))) {
-            abort(401, 'Invalid magic link.');
-        }
-
         // Log the user in
         Auth::login($user, true); // true for remember me
 
