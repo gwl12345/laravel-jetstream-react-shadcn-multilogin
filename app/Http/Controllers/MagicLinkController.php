@@ -43,7 +43,7 @@ class MagicLinkController extends Controller
         $magicLink = URL::temporarySignedRoute(
             'magic-link.login',
             now()->addMinutes(15),
-            ['user' => $user->id, 'hash' => sha1($user->email)]
+            ['user' => $user->id]
         );
 
         // Send email
